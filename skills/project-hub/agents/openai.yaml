@@ -1,0 +1,6 @@
+interface:
+  display_name: "Project Hub"
+  short_description: "The owner's Hub: mark a repo, pull its records up, push the global tier down"
+  default_prompt: "Use $project-hub to mark a repository, pull its authored records into this Hub, or push the global tier and a project's blueprint down into it."
+policy:
+  allow_implicit_invocation: true

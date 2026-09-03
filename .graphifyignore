@@ -1,0 +1,19 @@
+# What a graph build over this Hub must not read.
+#
+# owners_window/ is first for a reason: it is the owner's private thinking, it
+# is never pushed and never linted, and it must not be indexed either.
+owners_window/
+
+.git/
+.obsidian/
+.agents/
+.claude/
+AGENTS.md
+CLAUDE.md
+templates/
+scripts/
+skills/
+tests/
+docs/
+__pycache__/
+graphify-out/

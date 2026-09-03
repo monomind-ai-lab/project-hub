@@ -1,0 +1,36 @@
+{
+  "product": "project-hub",
+  "schema": "project-context/1",
+  "version": "0.1.0",
+  "registry": "registry.md",
+  "lint": {
+    "exclude": [
+      "owners_window/"
+    ]
+  },
+  "push": {
+    "global_include": [
+      "SUMMARY.md",
+      "GUARDRAILS.md",
+      "WORKFLOWS.md",
+      "skills/",
+      "shared/"
+    ],
+    "budget_words": {
+      "global_total": 2000,
+      "global_file": 400,
+      "SUMMARY.md": 150,
+      "blueprint/EPIC.md": 600,
+      "blueprint/ARCHITECTURE.md": 1200
+    },
+    "global_never": [
+      "IDENTITY.md"
+    ],
+    "global_opt_in": [
+      "GOALS.md",
+      "RESOURCES.md",
+      "people/",
+      "agents/"
+    ]
+  }
+}

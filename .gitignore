@@ -1,0 +1,41 @@
+# Sessions never enter a shared repository. Transcripts stay on the machine
+# that produced them; what survives is a capsule, not a log.
+sessions/
+
+# Rebuildable caches. The Hub is Markdown first; any index or SQLite cache a
+# later tool builds over it is derived and must never be the authority.
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+.cache/
+graphify-out/
+indexes/.cache/
+
+# Clone-specific bindings and credentials
+.env
+.env.*
+!.env.example
+.project-hub.local.json
+
+# Obsidian transient and community-plugin state, for owners who use it
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/cache/
+.obsidian/plugins/
+.obsidian/community-plugins.json
+
+# Operating-system and sync artifacts
+.DS_Store
+Thumbs.db
+*.icloud
+.trash/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.coverage
