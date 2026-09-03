@@ -64,11 +64,11 @@ creates no branch.
    non-pushed by default. Never add a deny-list.
 2. **Push is the only write into a repository the Hub does not live in**, and
    it is gated every time: the target tree must be clean, it works on the
-   `pull-sync` branch and never the default branch, it never force-pushes, and
+   `hub-sync` branch and never the default branch, it never force-pushes, and
    it prints the diff and asks first. `init` writes through the same gate — its
    install and its push share one branch and one confirmation.
 3. **It completes the round trip, and stops at the merge.** After committing it
-   pushes `pull-sync` and opens a pull request against the default branch; an
+   pushes `hub-sync` and opens a pull request against the default branch; an
    already-open request is updated rather than duplicated. Merging stays a
    human act, and the tool never merges.
 4. **Never create a remote, never `git init`, never invite anyone.**

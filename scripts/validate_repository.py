@@ -90,7 +90,7 @@ LICENSE_CLAUSES = (
 CLI_INVARIANTS = (
     ("DEFAULT_GLOBAL_INCLUDE", "push works from an allow-list"),
     ('"--set-upstream", "origin", branch', "push sets upstream on the sync branch"),
-    ('SYNC_BRANCH = "pull-sync"', "the sync branch has one name, reused across pushes"),
+    ('SYNC_BRANCH = "hub-sync"', "the sync branch has one name, reused across pushes"),
     ("refusing to write on the default branch", "push never writes on the default branch"),
     ("AUTHORED_SET", "pull works from an allow-list"),
     ("the place to change it is the Hub", "an edited copy is a conflict, not an overwrite"),

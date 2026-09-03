@@ -310,10 +310,10 @@ class PushConflictTests(HubCase):
         self.assertTrue(gate["applied"])
         self.assertTrue(gate["committed"])
         self.assertTrue(gate["pushed"])
-        self.assertEqual("pull-sync", gate["branch"])
+        self.assertEqual("hub-sync", gate["branch"])
         self.assertNotEqual("main", gate["branch"])
         # It reached the bare origin, and left the default branch alone.
-        self.assertIn("pull-sync", self.origin_branches())
+        self.assertIn("hub-sync", self.origin_branches())
         self.assertEqual(gate["branch"], git(self.repo, "rev-parse", "--abbrev-ref", "HEAD"))
         self.assertIn("Source-Commit:", git(self.repo, "log", "-1", "--format=%B"))
         self.assertTrue((self.repo / "project-context" / "global" / "GUARDRAILS.md").is_file())
@@ -325,12 +325,12 @@ class PushConflictTests(HubCase):
         first = git(self.repo, "rev-parse", "HEAD")
         self.write_global("GUARDRAILS.md", "# Guardrails\n\nA second revision.\n")
         report = self.run_cli("push", str(self.repo), "--apply", "--yes", "--skip-doctor")
-        self.assertEqual("pull-sync", report["gate"]["branch"])
+        self.assertEqual("hub-sync", report["gate"]["branch"])
         second = git(self.repo, "rev-parse", "HEAD")
         self.assertNotEqual(first, second)
         # Stacked, not rewritten: the first commit is still an ancestor.
-        self.assertIn(first[:7], git(self.repo, "log", "--format=%h", "pull-sync"))
-        self.assertEqual({"main", "pull-sync"}, self.origin_branches())
+        self.assertIn(first[:7], git(self.repo, "log", "--format=%h", "hub-sync"))
+        self.assertEqual({"main", "hub-sync"}, self.origin_branches())
 
     def test_stamps_follow_the_contract_and_a_second_push_is_a_no_op(self) -> None:
         self.make_repo(installed=True, remote=True)

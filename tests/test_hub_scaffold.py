@@ -204,7 +204,7 @@ class BoundaryTests(unittest.TestCase):
         text = CLI.read_text(encoding="utf-8")
         # It pushes one named branch, with upstream set, and nothing else.
         self.assertIn('"push", "--set-upstream", "origin", branch', text)
-        self.assertIn('SYNC_BRANCH = "pull-sync"', text)
+        self.assertIn('SYNC_BRANCH = "hub-sync"', text)
         # Never rewriting history, never inventing a repository or a remote.
         for forbidden in ('"--force"', '"--force-with-lease"',
                           'run_git(repo, "init"', '"remote", "add"'):

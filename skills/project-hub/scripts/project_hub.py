@@ -359,7 +359,11 @@ def git_default_branch(repo: Path) -> str | None:
     return git_text(repo, "rev-parse", "--abbrev-ref", "HEAD")
 
 
-SYNC_BRANCH = "pull-sync"
+# The branch every push lands on, in the target repository. Named for where the
+# content comes from rather than the direction it travels: a builder seeing
+# `hub-sync` in their branch list can tell at a glance who wrote it and why,
+# and the name is unlikely to collide with anything the project already uses.
+SYNC_BRANCH = "hub-sync"
 
 
 def gh_available() -> bool:

@@ -200,16 +200,16 @@ On `--apply`, in this order:
 3. The unified diff is printed and a person is asked. The prompt says plainly
    that this writes, pushes, and opens a pull request. `--yes` skips it;
    without it, a non-interactive session is declined rather than assumed.
-4. `git switch` to `pull-sync` (creating it only if absent), the files are
+4. `git switch` to `hub-sync` (creating it only if absent), the files are
    written, only those paths are staged, one commit is made carrying
    `Source-Commit:` and `Project-Id:` trailers.
-5. The branch is pushed with `--set-upstream origin pull-sync`.
+5. The branch is pushed with `--set-upstream origin hub-sync`.
 6. A pull request is opened against the default branch. If one is already open
-   for `pull-sync`, the push updates it and no second request is made. Without
+   for `hub-sync`, the push updates it and no second request is made. Without
    `gh` installed, the push still happens and the report hands back a compare
    URL to open by hand.
 
-**One branch, reused.** `pull-sync` is long-lived rather than one branch per
+**One branch, reused.** `hub-sync` is long-lived rather than one branch per
 push. Repeated syncs stack a commit on it and update the same pull request,
 which is easier to review than a scatter of dated branches — and it means the
 tool never force-pushes, so a reviewer's place in an open request survives.
