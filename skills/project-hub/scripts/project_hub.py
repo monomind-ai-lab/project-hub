@@ -359,6 +359,43 @@ def git_default_branch(repo: Path) -> str | None:
     return git_text(repo, "rev-parse", "--abbrev-ref", "HEAD")
 
 
+SYNC_BRANCH = "pull-sync"
+
+
+def gh_available() -> bool:
+    """`gh` is an optional resolver, never a dependency.
+
+    Everything up to the pull request works with git alone. When `gh` is
+    absent we push and hand back the exact command and compare URL, which is
+    strictly more useful than refusing.
+    """
+    return shutil.which("gh") is not None
+
+
+def gh_open_pr(repo: Path, branch: str) -> str | None:
+    """URL of an open pull request already tracking `branch`, if any."""
+    if not gh_available():
+        return None
+    found = subprocess.run(
+        ["gh", "pr", "list", "--head", branch, "--state", "open",
+         "--json", "url", "--jq", ".[0].url"],
+        cwd=repo, capture_output=True, text=True, check=False,
+    )
+    if found.returncode != 0:
+        return None
+    url = found.stdout.strip()
+    return url or None
+
+
+def compare_url(remote: str, branch: str, base: str | None) -> str | None:
+    """A browser URL for opening the pull request by hand."""
+    match = re.match(r"(?:git@github\.com:|https://github\.com/)([^/]+/[^/.]+)", remote or "")
+    if not match:
+        return None
+    slug = match.group(1)
+    return f"https://github.com/{slug}/compare/{base or 'main'}...{branch}?expand=1"
+
+
 def git_head(repo: Path, ref: str = "HEAD") -> str | None:
     return git_text(repo, "rev-parse", ref)
 
@@ -497,13 +534,25 @@ def upsert_registry(hub: Path, project_id: str, **fields: str) -> None:
 
 
 def derive_project_id(repo: Path, remote: str | None) -> str:
-    name = None
+    """The one name every clone of a repository agrees on.
+
+    The working directory's name comes first, and the remote is only a
+    fallback. Taking the remote first looks equivalent — for a GitHub URL the
+    two usually match — but it is wrong in the cases that matter: a bare
+    mirror, a fork whose remote keeps the upstream name, or any remote whose
+    last path segment is not the project (`.../origin.git` yields `origin`).
+    A wrong id here is not cosmetic: it names the Hub folder the project's
+    records live in.
+    """
+    candidates = [repo.name]
     if remote:
         tail = remote.rstrip("/").rsplit("/", 1)[-1]
-        name = tail[:-4] if tail.endswith(".git") else tail
-    name = name or repo.name
-    slug = re.sub(r"[^a-z0-9._-]+", "-", name.casefold()).strip("-._")
-    return slug or "project"
+        candidates.append(tail[:-4] if tail.endswith(".git") else tail)
+    for name in candidates:
+        slug = re.sub(r"[^a-z0-9._-]+", "-", (name or "").casefold()).strip("-._")
+        if slug and slug not in {"origin", "git", "repo", "repository"}:
+            return slug
+    return "project"
 
 
 def project_dir(hub: Path, project_id: str) -> Path:
@@ -1381,28 +1430,34 @@ def gated_apply(hub: Path, project_id: str, repo: Path, report: dict[str, Any],
     if not clean:
         return 2, {"applied": False, "reason": "the repository has uncommitted changes; commit or stash them first"}
     default_branch = git_default_branch(repo)
-    branch = args.branch or f"project-hub/push-{project_id}-{today().replace('-', '')}"
+    # One long-lived branch per repository, not one per push. Repeated syncs
+    # stack commits on it and update the same pull request, which is easier to
+    # review than a scatter of dated branches — and it means no force-push.
+    branch = args.branch or SYNC_BRANCH
     if default_branch and branch == default_branch:
         return 2, {"applied": False, "reason": f"refusing to write on the default branch ({default_branch})"}
     already_here = git_current_branch(repo) == branch
-    if not already_here and git_text(repo, "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"):
-        return 2, {"applied": False, "reason": f"branch {branch} already exists; pass --branch <name>"}
+    branch_exists = bool(git_text(repo, "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"))
 
     diff = render_diff(report)
     if not args.yes:
         print(diff, file=sys.stderr)
+        remote_preview = git_remote(repo) or "origin"
         print(
-            f"\nThis writes {report['changes']} change(s) into {repo} on a new branch {branch}.",
+            f"\nThis writes {report['changes']} change(s) into {repo} on branch {branch},"
+            f"\npushes that branch to {remote_preview}, and opens a pull request against"
+            f"\n{default_branch or 'the default branch'}. Merging stays yours.",
             file=sys.stderr,
         )
-        if not confirm("Write them?"):
+        if not confirm("Write, push, and open the pull request?"):
             return 1, {"applied": False, "reason": "declined at the confirmation prompt", "branch": branch}
 
     started_on = git_current_branch(repo)
     if not already_here:
-        created = run_git(repo, "switch", "--create", branch)
+        switch_args = ("switch", branch) if branch_exists else ("switch", "--create", branch)
+        created = run_git(repo, *switch_args)
         if created is None or created.returncode != 0:
-            return 2, {"applied": False, "reason": "could not create the branch", "branch": branch}
+            return 2, {"applied": False, "reason": "could not check out the branch", "branch": branch}
     written = apply_actions(report["actions"])
     relatives = sorted({
         os.path.relpath(path, repo).replace(os.sep, "/") for path in written
@@ -1435,21 +1490,74 @@ def gated_apply(hub: Path, project_id: str, repo: Path, report: dict[str, Any],
     if state:
         apply_actions([state])
     remote = git_remote(repo) or "origin"
-    return 0, {
+    result: dict[str, Any] = {
         "applied": True,
         "committed": committed,
         "branch": branch,
         "started_on": started_on,
         "files": relatives,
-        # Everything up to the network, and not one step past it.
-        "pushed": False,
-        "would_push": f"would push branch {branch} to {remote}",
-        "next": [
-            f"cd {repo} && git push --set-upstream origin {branch}",
-            "open a pull request and merge it; merging stays a human act",
-            f"the repository is now on {branch}; `git switch {started_on}` returns it",
-        ],
     }
+    if not committed:
+        result["pushed"] = False
+        result["reason"] = "nothing was committed, so there is nothing to push"
+        return 2, result
+
+    # Push the sync branch. Never the default branch, never --force: a repeated
+    # sync adds a commit to this branch rather than rewriting what is there, so
+    # a reviewer's place in an open pull request survives.
+    pushed = run_git(repo, "push", "--set-upstream", "origin", branch)
+    if pushed is None or pushed.returncode != 0:
+        result["pushed"] = False
+        result["reason"] = (
+            "the branch is committed locally but the push failed; "
+            f"run `cd {repo} && git push --set-upstream origin {branch}` to retry"
+        )
+        return 2, result
+    result["pushed"] = True
+    result["remote"] = remote
+
+    # The pull request. `gh` is optional: without it we have still done the
+    # part that needs credentials, and the owner opens the request by hand.
+    existing = gh_open_pr(repo, branch)
+    if existing:
+        result["pull_request"] = existing
+        result["pull_request_state"] = "updated an open pull request"
+    elif gh_available():
+        title = f"Sync project context from the Hub ({project_id})"
+        body = (
+            "Pushed by `project-hub push`.\n\n"
+            f"- Source commit in the Hub: `{report['source_commit']}`\n"
+            f"- Project id: `{project_id}`\n"
+            f"- Files: {len(relatives)}\n\n"
+            "These files are the pushed set — `global/` and `blueprint/`. They are "
+            "read-only in this repository: the doctor errors if one is edited here. "
+            "To change any of them, raise a question or a `proposal` capsule in "
+            "`project-context/`, and it reaches the owner on their next pull.\n"
+        )
+        args_pr = ["gh", "pr", "create", "--head", branch, "--title", title, "--body", body]
+        if default_branch:
+            args_pr += ["--base", default_branch]
+        created_pr = subprocess.run(args_pr, cwd=repo, capture_output=True, text=True, check=False)
+        if created_pr.returncode == 0:
+            result["pull_request"] = created_pr.stdout.strip().splitlines()[-1] if created_pr.stdout.strip() else None
+            result["pull_request_state"] = "opened"
+        else:
+            result["pull_request_state"] = "could not be opened automatically"
+            result["pull_request_error"] = (created_pr.stderr or "").strip()[:300]
+            url = compare_url(remote, branch, default_branch)
+            if url:
+                result["pull_request_url_to_open"] = url
+    else:
+        result["pull_request_state"] = "gh not installed; open it by hand"
+        url = compare_url(remote, branch, default_branch)
+        if url:
+            result["pull_request_url_to_open"] = url
+
+    result["next"] = [
+        "review the pull request and merge it; merging stays a human act",
+        f"the repository is now on {branch}; `git switch {started_on}` returns it",
+    ]
+    return 0, result
 
 
 # --------------------------------------------------------------------------

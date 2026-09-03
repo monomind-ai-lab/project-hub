@@ -76,7 +76,8 @@ class HubCase(unittest.TestCase):
 
     # -- fixtures ---------------------------------------------------------
 
-    def make_repo(self, *, installed: bool = False, branch: str = "main") -> Path:
+    def make_repo(self, *, installed: bool = False, branch: str = "main",
+                  remote: bool = False) -> Path:
         self.repo.mkdir(parents=True, exist_ok=True)
         (self.repo / "src").mkdir(exist_ok=True)
         (self.repo / "src" / "main.py").write_text("def main():\n    return 0\n", encoding="utf-8")
@@ -85,7 +86,24 @@ class HubCase(unittest.TestCase):
             self.install_marker()
         git(self.repo, "add", "-A")
         git(self.repo, "commit", "-qm", "seed")
+        if remote:
+            # A bare repository on disk, wired up as `origin`. `push` now
+            # completes the round trip, so tests that apply exercise the real
+            # command rather than a rehearsal — and still touch no network.
+            # Off by default: a local origin path is absolute, and the registry
+            # would then hold one, which `test_no_absolute_path...` rightly
+            # refuses. Real remotes are URLs, so only push-apply tests want it.
+            self.origin = self.workspace / "origin.git"
+            git(self.workspace, "init", "-q", "--bare", str(self.origin))
+            git(self.repo, "remote", "add", "origin", str(self.origin))
+            git(self.repo, "push", "-q", "--set-upstream", "origin", branch)
         return self.repo
+
+    def origin_branches(self) -> set[str]:
+        """Branch names that actually arrived in the bare origin."""
+        out = subprocess.run(["git", "for-each-ref", "--format=%(refname:short)", "refs/heads/"],
+                             cwd=self.origin, capture_output=True, text=True, check=False)
+        return {line.strip() for line in out.stdout.splitlines() if line.strip()}
 
     def install_marker(self) -> None:
         context = self.repo / "project-context"
@@ -201,7 +219,7 @@ class InitTests(HubCase):
 
 class PushAllowListTests(HubCase):
     def test_the_owners_window_is_never_sent(self) -> None:
-        self.make_repo(installed=True)
+        self.make_repo(installed=True, remote=True)
         self.seed_global()
         (self.hub / "owners_window" / "next-quarter.md").write_text(
             "# A half-formed idea\n", encoding="utf-8")
@@ -211,7 +229,7 @@ class PushAllowListTests(HubCase):
         self.assertFalse(any("next-quarter" in path for path in sent))
 
     def test_readmes_owners_and_unfilled_seeds_are_skipped_with_a_reason(self) -> None:
-        self.make_repo(installed=True)
+        self.make_repo(installed=True, remote=True)
         self.seed_global()
         report = self.run_cli("push", str(self.repo), "--dry-run")
         skipped = {entry["path"]: entry["reason"] for entry in report["skipped"]}
@@ -224,7 +242,7 @@ class PushAllowListTests(HubCase):
 
     def test_identity_is_never_pushed_even_when_the_marker_asks(self) -> None:
         """Decision D9: identity never reaches a project repo, at any setting."""
-        self.make_repo(installed=True)
+        self.make_repo(installed=True, remote=True)
         self.seed_global()
         self.write_global("IDENTITY.md", "# Identity\n\nWe write plainly.\n")
         self.opt_in_global("IDENTITY.md")
@@ -233,7 +251,7 @@ class PushAllowListTests(HubCase):
         self.assertNotIn("IDENTITY.md", sent)
 
     def test_only_named_entries_leave_global(self) -> None:
-        self.make_repo(installed=True)
+        self.make_repo(installed=True, remote=True)
         self.seed_global()
         (self.hub / "global" / "drafts").mkdir()
         (self.hub / "global" / "drafts" / "idea.md").write_text("# Not on the list\n", encoding="utf-8")
@@ -241,7 +259,7 @@ class PushAllowListTests(HubCase):
         self.assertFalse(any("drafts" in action["path"] for action in report["actions"]))
 
     def test_blueprint_is_sent_and_lands_under_project_context(self) -> None:
-        self.make_repo(installed=True)
+        self.make_repo(installed=True, remote=True)
         self.seed_global()
         self.write_blueprint("notes-api", "EPIC.md", "# Epic\n\n- **E-001 — One store.**\n")
         report = self.run_cli("push", "notes-api", "--dry-run") if False else \
@@ -252,7 +270,7 @@ class PushAllowListTests(HubCase):
 
 class PushBudgetTests(HubCase):
     def test_an_over_budget_file_is_refused_and_named(self) -> None:
-        self.make_repo(installed=True)
+        self.make_repo(installed=True, remote=True)
         self.seed_global()
         self.opt_in_global("GOALS.md")
         self.write_global("GOALS.md", "# Goals\n\n" + "word " * 500)
@@ -285,21 +303,37 @@ class PushConflictTests(HubCase):
         self.seed_global()
         return self.run_cli("push", str(self.repo), "--apply", "--yes", "--skip-doctor")
 
-    def test_apply_commits_on_a_branch_and_stops_before_the_network(self) -> None:
-        self.make_repo(installed=True)
+    def test_apply_commits_and_pushes_the_sync_branch(self) -> None:
+        self.make_repo(installed=True, remote=True)
         report = self.push_once()
         gate = report["gate"]
         self.assertTrue(gate["applied"])
         self.assertTrue(gate["committed"])
-        self.assertFalse(gate["pushed"])
-        self.assertIn("would push branch", gate["would_push"])
+        self.assertTrue(gate["pushed"])
+        self.assertEqual("pull-sync", gate["branch"])
         self.assertNotEqual("main", gate["branch"])
+        # It reached the bare origin, and left the default branch alone.
+        self.assertIn("pull-sync", self.origin_branches())
         self.assertEqual(gate["branch"], git(self.repo, "rev-parse", "--abbrev-ref", "HEAD"))
         self.assertIn("Source-Commit:", git(self.repo, "log", "-1", "--format=%B"))
         self.assertTrue((self.repo / "project-context" / "global" / "GUARDRAILS.md").is_file())
 
+    def test_a_second_sync_stacks_a_commit_on_the_same_branch(self) -> None:
+        """One long-lived branch, so an open pull request keeps its place."""
+        self.make_repo(installed=True, remote=True)
+        self.push_once()
+        first = git(self.repo, "rev-parse", "HEAD")
+        self.write_global("GUARDRAILS.md", "# Guardrails\n\nA second revision.\n")
+        report = self.run_cli("push", str(self.repo), "--apply", "--yes", "--skip-doctor")
+        self.assertEqual("pull-sync", report["gate"]["branch"])
+        second = git(self.repo, "rev-parse", "HEAD")
+        self.assertNotEqual(first, second)
+        # Stacked, not rewritten: the first commit is still an ancestor.
+        self.assertIn(first[:7], git(self.repo, "log", "--format=%h", "pull-sync"))
+        self.assertEqual({"main", "pull-sync"}, self.origin_branches())
+
     def test_stamps_follow_the_contract_and_a_second_push_is_a_no_op(self) -> None:
-        self.make_repo(installed=True)
+        self.make_repo(installed=True, remote=True)
         self.push_once()
         marker = json.loads((self.repo / "project-context" / ".project-context.json").read_text(encoding="utf-8"))
         stamp = marker["pushed"]["global/GUARDRAILS.md"]
@@ -312,7 +346,7 @@ class PushConflictTests(HubCase):
         self.assertEqual({"unchanged"}, set(again["summary"]))
 
     def test_a_copy_edited_in_the_repository_is_a_conflict(self) -> None:
-        self.make_repo(installed=True)
+        self.make_repo(installed=True, remote=True)
         self.push_once()
         copy = self.repo / "project-context" / "global" / "GUARDRAILS.md"
         copy.write_text(copy.read_text(encoding="utf-8") + "- G-002 Snuck in.\n", encoding="utf-8")
@@ -321,7 +355,7 @@ class PushConflictTests(HubCase):
         self.assertIn("the place to change it is the Hub", conflict["reason"])
 
     def test_an_unstamped_file_at_the_destination_is_a_conflict(self) -> None:
-        self.make_repo(installed=True)
+        self.make_repo(installed=True, remote=True)
         self.seed_global()
         landing = self.repo / "project-context" / "global"
         landing.mkdir(parents=True)
@@ -336,7 +370,7 @@ class PushConflictTests(HubCase):
         self.assertTrue(any("not installed" in reason for reason in report["blocked"]))
 
     def test_push_refuses_the_default_branch(self) -> None:
-        self.make_repo(installed=True)
+        self.make_repo(installed=True, remote=True)
         self.seed_global()
         report = self.run_cli("push", str(self.repo), "--apply", "--yes", "--skip-doctor",
                               "--branch", "main", expected=2)
@@ -344,14 +378,14 @@ class PushConflictTests(HubCase):
         self.assertEqual("main", git(self.repo, "rev-parse", "--abbrev-ref", "HEAD"))
 
     def test_push_refuses_a_dirty_target(self) -> None:
-        self.make_repo(installed=True)
+        self.make_repo(installed=True, remote=True)
         self.seed_global()
         (self.repo / "src" / "main.py").write_text("def main():\n    return 1\n", encoding="utf-8")
         report = self.run_cli("push", str(self.repo), "--apply", "--yes", "--skip-doctor", expected=2)
         self.assertIn("uncommitted", report["gate"]["reason"])
 
     def test_push_refuses_a_dirty_hub_because_the_stamp_would_lie(self) -> None:
-        self.make_repo(installed=True)
+        self.make_repo(installed=True, remote=True)
         self.seed_global()
         git(self.hub, "init", "-q", "-b", "main", ".")
         git(self.hub, "add", "-A")
@@ -363,7 +397,7 @@ class PushConflictTests(HubCase):
         self.assertGreater(allowed["changes"], 0)
 
     def test_a_non_interactive_apply_without_yes_is_declined(self) -> None:
-        self.make_repo(installed=True)
+        self.make_repo(installed=True, remote=True)
         self.seed_global()
         report = self.run_cli("push", str(self.repo), "--apply", "--skip-doctor", expected=1)
         self.assertFalse(report["gate"]["applied"])
@@ -371,7 +405,7 @@ class PushConflictTests(HubCase):
         self.assertFalse((self.repo / "project-context" / "global").exists())
 
     def test_doctor_errors_block_a_push(self) -> None:
-        self.make_repo(installed=True)
+        self.make_repo(installed=True, remote=True)
         self.seed_global()
         doctor = self.stub("failing_doctor.py", FAILING_DOCTOR)
         report = self.run_cli("push", str(self.repo), "--dry-run", "--doctor", str(doctor), expected=2)
@@ -507,14 +541,14 @@ class RegistryAndPathTests(HubCase):
         self.assertIn("## How a row is filled", registry)
 
     def test_a_project_can_be_addressed_by_id_after_it_is_registered(self) -> None:
-        self.make_repo(installed=True)
+        self.make_repo(installed=True, remote=True)
         self.seed_global()
         self.run_cli("push", str(self.repo), "--apply", "--yes", "--skip-doctor")
         by_id = self.run_cli("push", "notes-api", "--dry-run", "--skip-doctor")
         self.assertEqual("notes-api", by_id["project_id"])
 
     def test_a_push_by_path_teaches_the_registry_where_the_repository_is(self) -> None:
-        self.make_repo(installed=True)
+        self.make_repo(installed=True, remote=True)
         self.seed_global()
         self.run_cli("push", str(self.repo), "--apply", "--yes", "--skip-doctor")
         row = [line for line in (self.hub / "registry.md").read_text(encoding="utf-8").splitlines()
@@ -524,7 +558,7 @@ class RegistryAndPathTests(HubCase):
 
     def test_none_of_another_workstreams_files_are_ever_created(self) -> None:
         """README.md, AGENTS.md and the rest belong to a different workstream."""
-        self.make_repo()
+        self.make_repo(remote=True)
         installer = self.stub("installer.py", STUB_INSTALLER)
         self.seed_global()
         self.run_cli("init", str(self.repo), "--apply", "--installer", str(installer),
@@ -576,7 +610,7 @@ class SafetyTests(HubCase):
         self.assertIn(".project-hub.json", result.stderr)
 
     def test_a_symlinked_destination_is_never_followed(self) -> None:
-        self.make_repo(installed=True)
+        self.make_repo(installed=True, remote=True)
         self.seed_global()
         landing = self.repo / "project-context" / "global"
         landing.mkdir(parents=True)

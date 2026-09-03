@@ -195,19 +195,28 @@ in `.project-hub.json` under `push.budget_words`.
 On `--apply`, in this order:
 
 1. Nothing to send → says so and stops. No branch is created.
-2. The target's tree must be clean; the branch must not be the default branch;
-   the branch must not already exist.
-3. The unified diff is printed and a person is asked. `--yes` skips the prompt;
+2. The target's tree must be clean and the branch must not be the default
+   branch. The sync branch is reused if it already exists — see below.
+3. The unified diff is printed and a person is asked. The prompt says plainly
+   that this writes, pushes, and opens a pull request. `--yes` skips it;
    without it, a non-interactive session is declined rather than assumed.
-4. `git switch --create project-hub/push-<id>-<YYYYMMDD>`, the files are
+4. `git switch` to `pull-sync` (creating it only if absent), the files are
    written, only those paths are staged, one commit is made carrying
    `Source-Commit:` and `Project-Id:` trailers.
-5. **It stops.** The report says `"pushed": false` and
-   `"would push branch <name> to <remote>"`, and lists the exact commands to
-   send it and to get back to the branch you started on.
+5. The branch is pushed with `--set-upstream origin pull-sync`.
+6. A pull request is opened against the default branch. If one is already open
+   for `pull-sync`, the push updates it and no second request is made. Without
+   `gh` installed, the push still happens and the report hands back a compare
+   URL to open by hand.
 
-Sending the branch to the remote and merging it are human acts. This tool
-never runs `git push`, never force-pushes, never creates a remote, and never
+**One branch, reused.** `pull-sync` is long-lived rather than one branch per
+push. Repeated syncs stack a commit on it and update the same pull request,
+which is easier to review than a scatter of dated branches — and it means the
+tool never force-pushes, so a reviewer's place in an open request survives.
+Override with `--branch <name>` when you want a one-off.
+
+**Merging stays a human act.** This tool never merges, never force-pushes,
+never creates a remote, and never
 runs `git init`.
 
 `push` does not write the managed blocks in `CLAUDE.md` and `AGENTS.md`. That

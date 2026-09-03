@@ -63,13 +63,14 @@ creates no branch.
    `global/` only what `.project-hub.json` names. A folder added here later is
    non-pushed by default. Never add a deny-list.
 2. **Push is the only write into a repository the Hub does not live in**, and
-   it is gated every time: the target tree must be clean, it works on a new
-   branch and never the default branch, it never force-pushes, it prints the
-   diff and asks first. `init` writes through the same gate — its install and
-   its push share one branch and one confirmation.
-3. **The network step is not taken by the tool.** After committing on the
-   branch it prints `would push branch <name>` and the exact command. Sending
-   the branch and merging it stay human acts.
+   it is gated every time: the target tree must be clean, it works on the
+   `pull-sync` branch and never the default branch, it never force-pushes, and
+   it prints the diff and asks first. `init` writes through the same gate — its
+   install and its push share one branch and one confirmation.
+3. **It completes the round trip, and stops at the merge.** After committing it
+   pushes `pull-sync` and opens a pull request against the default branch; an
+   already-open request is updated rather than duplicated. Merging stays a
+   human act, and the tool never merges.
 4. **Never create a remote, never `git init`, never invite anyone.**
 5. **A copy that was edited where it landed is a conflict, not an overwrite.**
    Push refuses and names the Hub as the place to change it.

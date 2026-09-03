@@ -89,7 +89,8 @@ LICENSE_CLAUSES = (
 # that merely mentions it.
 CLI_INVARIANTS = (
     ("DEFAULT_GLOBAL_INCLUDE", "push works from an allow-list"),
-    ('"would push branch', "push stops before the network and says so"),
+    ('"--set-upstream", "origin", branch', "push sets upstream on the sync branch"),
+    ('SYNC_BRANCH = "pull-sync"', "the sync branch has one name, reused across pushes"),
     ("refusing to write on the default branch", "push never writes on the default branch"),
     ("AUTHORED_SET", "pull works from an allow-list"),
     ("the place to change it is the Hub", "an edited copy is a conflict, not an overwrite"),
@@ -207,9 +208,15 @@ def main() -> int:
         } - set(sys.stdlib_module_names) - {"__future__"}
         if third_party:
             errors.append(f"the CLI imports something outside the standard library: {sorted(third_party)}")
-        if re.search(r'"push"|\bgit\b[^\n]*"push"', cli) and '"push", "--set-upstream"' in cli:
-            errors.append("the CLI appears to run `git push`; the network step is not the tool's to take")
-        for forbidden in ('run_git(repo, "init"', '"--force"', 'remote", "add"'):
+        # `push` now completes the round trip: it pushes the sync branch and
+        # opens a pull request. What must stay true is narrower, and these are
+        # the checks that carry it. Merging is still nobody's job but a human's.
+        if '"push", "--set-upstream", "origin", branch' not in cli:
+            errors.append("push no longer sets upstream on the sync branch by name")
+        if "refusing to write on the default branch" not in cli:
+            errors.append("push no longer refuses the default branch")
+        for forbidden in ('run_git(repo, "init"', '"--force"', '"--force-with-lease"',
+                          'remote", "add"', '"pr", "merge"'):
             if forbidden in cli:
                 errors.append(f"the CLI contains a forbidden git operation: {forbidden}")
 

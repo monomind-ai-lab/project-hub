@@ -193,14 +193,25 @@ class BoundaryTests(unittest.TestCase):
         }
         self.assertTrue(imported <= set(sys.stdlib_module_names) | {"__future__"}, imported)
 
-    def test_the_cli_never_reaches_the_network_by_itself(self) -> None:
+    def test_the_network_step_is_bounded_rather_than_absent(self) -> None:
+        """`push` completes the round trip; what constrains it is narrower now.
+
+        This test used to assert the CLI never pushed at all. That changed by
+        instruction: push writes the sync branch and opens a pull request. The
+        boundary did not disappear, it moved — so these are the properties that
+        replace it, and merging is still nobody's job but a human's.
+        """
         text = CLI.read_text(encoding="utf-8")
-        # `git fetch` is opt-in on the owner's own clone and writes no files
-        # there. Anything that sends is absent: no push, no remote, no init.
-        self.assertNotIn('run_git(repo, "push"', text)
-        self.assertNotIn('"remote", "add"', text)
-        self.assertNotIn('run_git(repo, "init"', text)
-        self.assertIn("would_push", text)
+        # It pushes one named branch, with upstream set, and nothing else.
+        self.assertIn('"push", "--set-upstream", "origin", branch', text)
+        self.assertIn('SYNC_BRANCH = "pull-sync"', text)
+        # Never rewriting history, never inventing a repository or a remote.
+        for forbidden in ('"--force"', '"--force-with-lease"',
+                          'run_git(repo, "init"', '"remote", "add"'):
+            self.assertNotIn(forbidden, text)
+        # Never merging, and never touching the default branch.
+        self.assertNotIn('"pr", "merge"', text)
+        self.assertIn("refusing to write on the default branch", text)
 
 
 if __name__ == "__main__":
