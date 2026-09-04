@@ -72,11 +72,20 @@ have changed.
 | `projects/<id>/` | Mark, summary, `blueprint/`, and `pulled/` |
 | `owners_window/` | Yours. Never pushed, never linted |
 | `registry.md` | Every repository the Hub knows about |
+| `owners-guide.md` | The complete owner's reference |
 | `guides/` | Six short guides, one question each |
 | `skills/` | The `/hub-init`, `/hub-pull` and `/hub-push` commands |
 | `.obsidian/` | Configuration only. No plugin code |
 
 ## Where to go next
+
+**[owners-guide.md](owners-guide.md) is the complete reference** — the scaffold
+versus instance distinction, what reaches a project repository and what never
+does, every command with its real flags and gates, the budgets, and an honest
+list of what is not built yet. Read that if you want one document rather than
+six short ones.
+
+The guides are the short route, one question each:
 
 - `guides/what-the-hub-is.md` — and what it is not
 - `guides/authored-and-pushed.md` — which files you own and which you do not
@@ -88,6 +97,10 @@ have changed.
 
 `CHANGELOG-MIGRATION.md` is the upgrade log. It is written to be applied by an
 agent rather than read by you.
+
+Builders working in a project repository want the
+[builder's guide](https://github.com/monomind-ai-lab/project-context/blob/main/docs/builders-guide.md)
+instead — it covers the half of the pair they can actually see.
 
 ## Obsidian is optional
 
