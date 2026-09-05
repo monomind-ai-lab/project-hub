@@ -138,17 +138,39 @@ class AdapterPromptTests(unittest.TestCase):
         ):
             self.assertIn(rule, text, rule)
 
-    def test_no_step_writes_a_pointer_file_the_scaffold_already_ships(self) -> None:
-        for name in ("CLAUDE.md", "GEMINI.md", "HUB-OWNER.md"):
-            self.assertFalse((ROOT / name).exists(), f"{name} is written by activation, not shipped")
+    def test_activation_state_is_never_shipped(self) -> None:
+        """`HUB-OWNER.md` *is* the statement that activation has run.
+
+        The contract's read order, the onboarding agent, and the validator all
+        treat its presence as that fact, so a scaffold carrying one would
+        assert an activation nobody performed. A host pointer is different:
+        shipping one is fine, because step 3 checks for an existing pointer and
+        skips it, and the scaffold is itself worked on in Claude Code.
+        """
+        self.assertFalse((ROOT / "HUB-OWNER.md").exists())
+
+    def test_the_shipped_pointer_is_a_pointer(self) -> None:
+        pointer = (ROOT / "CLAUDE.md").read_text(encoding="utf-8")
+        self.assertIn("AGENTS.md", pointer)
+        self.assertLess(len(pointer.splitlines()), 40, "a pointer this long is a second contract")
+        # The rules live in AGENTS.md once. A pointer that repeats one is the
+        # bug "two layers, never three" exists to prevent.
+        for rule in ("Read order", "Canonical paths", "allow-list"):
+            self.assertNotIn(rule, pointer, f"the pointer restates {rule!r}")
+
+    def test_step_three_leaves_an_existing_pointer_alone(self) -> None:
+        step = PROMPT.read_text(encoding="utf-8").split("## Step 3")[1].split("## Step 4")[0]
+        self.assertIn("do not overwrite it", step)
+        self.assertIn("count a skip", step)
 
     def test_the_validator_does_not_fail_a_hub_that_has_been_activated(self) -> None:
         """It ships inside the scaffold, so it runs in both places.
 
-        The scaffold must not carry `CLAUDE.md`, `HUB-OWNER.md`, or vendored
-        plugins. A working Hub has all three, because activation wrote the
-        first two and Obsidian installed the third. Applying the scaffold's
-        rule to a real Hub would fail it for doing exactly what it was told.
+        The scaffold must not carry `HUB-OWNER.md` or vendored plugins, and a
+        working Hub has both — activation wrote the first and Obsidian
+        installed the second. Applying the scaffold's rule to a real Hub would
+        fail it for doing exactly what it was told. A second host pointer, for
+        a second tool the owner opened the Hub in, must pass too.
         """
         import shutil, subprocess, sys, tempfile
         with tempfile.TemporaryDirectory() as directory:
@@ -158,7 +180,9 @@ class AdapterPromptTests(unittest.TestCase):
                 ignore=shutil.ignore_patterns(".git", "__pycache__", ".pytest_cache", ".venv"),
             )
             (hub / "HUB-OWNER.md").write_text("# Hub owner\n\n- OWNER_NAME: Example\n", encoding="utf-8")
-            (hub / "CLAUDE.md").write_text("# Project Hub — host pointer\n", encoding="utf-8")
+            (hub / "GEMINI.md").write_text(
+                "# Project Hub — host pointer\n\nThe contract is `AGENTS.md`.\n", encoding="utf-8"
+            )
             (hub / ".obsidian" / "plugins" / "realclaudian").mkdir(parents=True)
             result = subprocess.run(
                 [sys.executable, str(hub / "scripts" / "validate_repository.py")],

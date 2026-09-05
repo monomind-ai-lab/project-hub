@@ -65,24 +65,34 @@ is now part of what the scaffold guarantees. For an activated Hub this release
 is documentation plus a stricter self-check; no record, no `global/` file, and
 no project folder is touched.
 
-One behaviour worth knowing about: `scripts/validate_repository.py` now refuses
-a scaffold that ships a host pointer file, `HUB-OWNER.md`, or vendored plugin
-code — and skips those three checks entirely once `HUB-OWNER.md` exists, because
-that is exactly what a working Hub has. Running the validator in your own Hub
-stays a pass.
+Two behaviours worth knowing about. `scripts/validate_repository.py` now
+refuses a scaffold that ships `HUB-OWNER.md` or vendored plugin code, and skips
+both checks once `HUB-OWNER.md` exists, because that is exactly what a working
+Hub has. Running the validator in your own Hub stays a pass.
+
+And the scaffold now ships `CLAUDE.md`. It is the thin pointer step 3 would
+have written, so activation finds it, sees it already names `AGENTS.md`, and
+counts a skip — the step was built to be idempotent and this is that path. Any
+host pointer present, shipped or written, is now checked for shape: it must
+name `AGENTS.md` and stay under 40 lines. A pointer that grows into a second
+copy of the contract is the failure "two layers, never three" exists to
+prevent, and it is now caught rather than described.
 
 ### Added
 
+- `CLAUDE.md` — the Claude Code host pointer. This scaffold is itself worked on
+  in Claude Code, and a session opening it without one got no contract at all.
 - `tests/test_onboarding.py` — the onboarding surface under test: the agent's
   tools, the prompt's seven steps and report fields, the guide set, and the
   Obsidian configuration.
 
 ### Changed
 
-- `scripts/validate_repository.py` — requires `ADAPTER-PROMPT.md`,
+- `scripts/validate_repository.py` — requires `ADAPTER-PROMPT.md`, `CLAUDE.md`,
   `.claude/agents/hub-onboarding.md`, `.obsidian/community-plugins.json`,
   `.obsidian/core-plugins.json`, `CHANGELOG-MIGRATION.md`, and the six guides.
-  Adds the never-shipped check described above, gated on `HUB-OWNER.md`.
+  Adds the never-shipped check described above, gated on `HUB-OWNER.md`, and
+  the host-pointer shape check.
 - `tests/test_hub_scaffold.py` — its boundary list narrows to `README.md` and
   `AGENTS.md`; the rule that the CLI must not name the onboarding surface is
   now its own test.
@@ -124,6 +134,10 @@ owner has edited, reporting the skip:
 - `ADAPTER-PROMPT.md`, `.claude/agents/hub-onboarding.md`, `guides/`,
   `.obsidian/community-plugins.json`, `.obsidian/core-plugins.json` — only if
   absent. If present, leave them; 0.2.0 changes none of their content.
+- `CLAUDE.md` — **only if absent.** An activated Hub already has one, written
+  by step 3 and possibly edited since. Never overwrite it. If it is present and
+  does not name `AGENTS.md`, do not fix it: report it, because a pointer aimed
+  somewhere else is the owner's decision to explain.
 
 Do not touch `README.md`, `AGENTS.md`, or `owners-guide.md` in an activated
 Hub. The owner may have personalised them at activation, and the wording
@@ -142,6 +156,7 @@ upgraded deterministically by the next entry.
 | Validator passes in place | `python3 scripts/validate_repository.py` exits 0 in this folder |
 | Activation still recognised | `HUB-OWNER.md` is unchanged, and the validator did not report it |
 | Onboarding intact | `.claude/agents/hub-onboarding.md` and `ADAPTER-PROMPT.md` both exist |
+| Pointer is a pointer | Every host pointer file present names `AGENTS.md` and is under 40 lines |
 | No vendored plugins added | This run created no `.obsidian/plugins/` directory |
 | Versions agree | `VERSION` and `.project-hub.json`'s `version` both read `0.2.0` |
 | Owner's window untouched | `owners_window/` has the same contents it had before the run |
