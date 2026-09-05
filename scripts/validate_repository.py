@@ -53,14 +53,38 @@ REQUIRED = (
     "scripts/validate_repository.py",
     "tests/test_project_hub.py",
     "tests/test_hub_scaffold.py",
+    "tests/test_onboarding.py",
+    # The onboarding surface. A Hub is a folder a person opens for the first
+    # time, so activation is part of what ships, not a thing bolted on after.
+    "ADAPTER-PROMPT.md",
+    ".claude/agents/hub-onboarding.md",
+    ".obsidian/community-plugins.json",
+    ".obsidian/core-plugins.json",
+    "guides/what-the-hub-is.md",
+    "guides/authored-and-pushed.md",
+    "guides/add-a-project.md",
+    "guides/obsidian.md",
+    "guides/bring-in-a-builder.md",
+    "guides/owners-window.md",
+    "CHANGELOG-MIGRATION.md",
 )
 
 # Files another workstream owns. This validator must neither require them nor
 # be surprised by them: they appear alongside this tree, not from it.
-NOT_OURS = (
-    "README.md", "AGENTS.md", "CLAUDE.md", "ADAPTER-PROMPT.md",
-    "CHANGELOG-MIGRATION.md", ".obsidian", "guides", ".claude",
-)
+NOT_OURS = ("README.md", "AGENTS.md")
+# A host pointer file is *written by activation* (ADAPTER-PROMPT step 3), so
+# shipping one would make that step a permanent skip and leave every Hub with a
+# pointer nobody wrote. Their absence from the *scaffold* is the invariant.
+NEVER_SHIPPED = ("CLAUDE.md", "GEMINI.md", ".cursor/rules/project-hub.mdc", "HUB-OWNER.md")
+# Obsidian installs plugins; the scaffold only recommends ids. Vendoring one
+# would put a third-party binary and its licence into this distribution.
+NEVER_SHIPPED_DIRECTORIES = (".obsidian/plugins",)
+# ...and every one of those paths is exactly what a *working* Hub has, because
+# activation wrote them and Obsidian installed them. This validator ships
+# inside the scaffold, so it runs in both places and must tell them apart.
+# `HUB-OWNER.md` is the signal: step 2 writes it and nothing else does, so its
+# presence means activation has run and these checks no longer apply.
+ACTIVATION_MARKER = "HUB-OWNER.md"
 
 TEXT_SUFFIXES = {".html", ".json", ".md", ".py", ".toml", ".txt", ".yaml", ".yml", ""}
 SKIP_PARTS = {".git", "__pycache__", ".venv", "node_modules"}
@@ -120,10 +144,19 @@ def main() -> int:
         if not (ROOT / relative).is_file():
             errors.append(f"missing required file: {relative}")
 
-    for relative in NOT_OURS:
-        path = ROOT / relative
-        if path.exists() and relative in {"README.md", "AGENTS.md", "CLAUDE.md"}:
-            continue  # present is fine; another workstream owns it
+    # NOT_OURS is present-is-fine: another workstream writes those and this
+    # validator neither requires them nor is surprised by them.
+    activated = (ROOT / ACTIVATION_MARKER).exists()
+    if not activated:
+        for relative in NEVER_SHIPPED:
+            if (ROOT / relative).exists():
+                errors.append(
+                    f"{relative} is shipped in the scaffold; activation writes it, so shipping one "
+                    "makes that step a permanent skip"
+                )
+        for relative in NEVER_SHIPPED_DIRECTORIES:
+            if (ROOT / relative).exists():
+                errors.append(f"{relative} exists; Obsidian installs plugins, the scaffold only recommends ids")
 
     for skill in ROOT.glob("skills/*/SKILL.md"):
         errors.extend(validate_skill(skill))

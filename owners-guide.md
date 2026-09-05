@@ -50,12 +50,20 @@ into repositories, and you pull their records up when you want to look.
 1. Clone or fork this scaffold into a **private** repository.
 2. Open the folder in Claude Code or Codex — that is where the onboarding agent
    runs. No Obsidian plugin is needed to start.
-3. Paste the contents of `ADAPTER-PROMPT.md` as your first message.
+3. Ask it to set the folder up. In Claude Code the agent ships with the
+   scaffold at `.claude/agents/hub-onboarding.md`, so "set this up", "activate
+   the hub", or "onboard me" dispatches it. In a host with no agent format,
+   paste the contents of `ADAPTER-PROMPT.md` as your first message instead —
+   it is the same seven steps.
 
 The agent detects its host, personalises the scaffold, writes a thin host
 pointer file, walks you through seeding `global/`, registers your first project,
 and offers the optional Obsidian pass. Every step checks before it writes, skips
 anything you have customised, and reports what it wrote against what it skipped.
+
+The agent runs with file tools only — no shell, no network. It cannot run
+`git init`, add a remote, or push, because it has nothing to run them with.
+Anything touching Git is yours to run, or belongs to the `/hub-*` commands.
 
 If you would rather read than talk, `guides/` has six short documents, each
 answering one question.

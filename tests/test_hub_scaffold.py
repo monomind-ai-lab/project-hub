@@ -15,11 +15,11 @@ VALIDATOR = ROOT / "scripts" / "validate_repository.py"
 CLI = ROOT / "skills" / "project-hub" / "scripts" / "project_hub.py"
 UNFILLED = "<!-- project-hub:unfilled -->"
 
-# Owned by another workstream. This tree must not create them.
-NOT_OURS = (
-    "README.md", "AGENTS.md", "CLAUDE.md", "ADAPTER-PROMPT.md",
-    "CHANGELOG-MIGRATION.md",
-)
+# Owned by another workstream. This tree must not create them. The onboarding
+# surface used to be on this list; slice 8 moved it into what the scaffold
+# ships, because a Hub is a folder a person opens for the first time and
+# activation is part of the product rather than a thing bolted on after.
+NOT_OURS = ("README.md", "AGENTS.md")
 
 PLACEHOLDERS = {
     "project_id", "remote", "host", "default_branch", "visibility", "languages",
@@ -162,12 +162,21 @@ class BoundaryTests(unittest.TestCase):
         required = validator.split("REQUIRED = (", 1)[1].split(")", 1)[0]
         for name in NOT_OURS:
             self.assertNotIn(f'"{name}"', required, f"the validator requires {name}")
+
+    def test_the_commands_know_nothing_about_the_onboarding_surface(self) -> None:
+        """Activation and operation are separate, and the CLI is the operation half.
+
+        The scaffold now ships the onboarding surface, but `project_hub.py`
+        still must not read, write, or name any of it: a command that knew
+        about `guides/` or `.obsidian/` would be a second thing to keep in step
+        with the prompt.
+        """
         cli = CLI.read_text(encoding="utf-8")
         # The CLI reports whether the two managed instruction files exist; it
         # never writes one, because that text has a single owner elsewhere.
         self.assertIn("instruction_blocks_present", cli)
-        for name in ("ADAPTER-PROMPT", "CHANGELOG-MIGRATION", ".obsidian", "guides"):
-            self.assertNotIn(name, cli, f"this workstream must not touch {name}")
+        for name in ("ADAPTER-PROMPT", "CHANGELOG-MIGRATION", ".obsidian", "guides", "hub-onboarding"):
+            self.assertNotIn(name, cli, f"the CLI must not touch {name}")
 
     def test_the_cli_never_initialises_a_repository(self) -> None:
         """The constraint is on the code, not on this directory.
