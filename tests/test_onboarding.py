@@ -276,5 +276,54 @@ class MigrationChangelogTests(unittest.TestCase):
                              [number for number, _ in steps], f"{version} step numbering")
 
 
+class GlobalTierDocumentationTests(unittest.TestCase):
+    """`global/README.md` is where an owner learns what travels.
+
+    It shipped saying `IDENTITY.md` was pushed, which decision D9 forbids at
+    any setting, and that four opt-in paths were pushed by default. An owner
+    reading it would have put the organisation's voice and its roster of people
+    into files they believed builders could see. The table has to agree with the
+    code that enforces it, so this reads both.
+    """
+
+    def table(self) -> dict[str, str]:
+        text = (ROOT / "global" / "README.md").read_text(encoding="utf-8")
+        found: dict[str, str] = {}
+        for line in text.splitlines():
+            match = re.match(r"^\| `([^`]+)` \| .* \| (.+?) \|$", line)
+            if match:
+                found[match.group(1)] = match.group(2).strip().strip("*")
+        return found
+
+    def cli(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "project_hub", ROOT / "skills" / "project-hub" / "scripts" / "project_hub.py"
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def test_the_table_agrees_with_the_code_about_what_is_pushed(self) -> None:
+        table, cli = self.table(), self.cli()
+        for name in cli.GLOBAL_NEVER_PUSHED:
+            self.assertEqual("never", table.get(name), f"{name} is D9; the table must not say otherwise")
+        for name in cli.GLOBAL_OPT_IN:
+            self.assertEqual("opt-in", table.get(name), f"{name} is opt-in, not a default")
+        for name in cli.DEFAULT_GLOBAL_INCLUDE:
+            self.assertEqual("yes", table.get(name), f"{name} is pushed by default")
+
+    def test_the_readme_explains_the_difference_between_never_and_opt_in(self) -> None:
+        text = (ROOT / "global" / "README.md").read_text(encoding="utf-8")
+        self.assertIn("decision D9", text)
+        self.assertIn("are not the same thing", text)
+
+    def test_identity_cannot_be_pushed_even_when_a_marker_asks(self) -> None:
+        cli = self.cli()
+        marker = {"push": {"global_include": ["SUMMARY.md", "IDENTITY.md"]}}
+        self.assertNotIn("IDENTITY.md", cli.global_include(marker))
+        self.assertEqual(["IDENTITY.md"], cli.refused_global_entries(marker))
+
+
 if __name__ == "__main__":
     unittest.main()
