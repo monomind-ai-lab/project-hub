@@ -40,8 +40,10 @@ repository, so they share **one gate, one branch, and one confirmation** —
 on one branch and pushing on another would leave the install uncommitted and
 the push refusing the tree it had just dirtied. The install is committed as
 `chore(project-context): install Project Context`, the push as a second commit
-on the same branch, and then it stops: `"pushed": false`, and the command to
-send the branch is printed.
+on the same branch. The one confirmation covers both, so the push runs with
+`yes=True` rather than asking a second time, and the branch is pushed and a
+pull request opened — the same ending `push` has. `--no-push` stops after the
+install and reports `"push": {"ran": false, "reason": "--no-push"}`.
 
 ```bash
 project_hub.py init ../notes-api --dry-run
