@@ -78,6 +78,7 @@ push" is therefore a fact about what it is able to do, not a promise it makes.
 | Path | Holds |
 | --- | --- |
 | `AGENTS.md` | The contract. One file, read first, never duplicated |
+| `CLAUDE.md` | A thin pointer to it, for Claude Code. Never a copy |
 | `ADAPTER-PROMPT.md` | The seven activation steps, for a host with no agent |
 | `.claude/agents/` | The same seven steps as a Claude Code agent |
 | `global/` | The global tier you author |

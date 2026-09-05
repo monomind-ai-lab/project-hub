@@ -57,6 +57,13 @@ REQUIRED = (
     # The onboarding surface. A Hub is a folder a person opens for the first
     # time, so activation is part of what ships, not a thing bolted on after.
     "ADAPTER-PROMPT.md",
+    # The Claude Code pointer. This scaffold is itself worked on in Claude
+    # Code, so a session opening it with no `CLAUDE.md` gets no contract at
+    # all — the delivery-path failure Project Context errors on. Shipping the
+    # pointer activation would have written costs nothing: step 3 checks
+    # whether one exists, finds this one already naming `AGENTS.md`, and counts
+    # a skip. What must never ship is `HUB-OWNER.md`, below.
+    "CLAUDE.md",
     ".claude/agents/hub-onboarding.md",
     ".obsidian/community-plugins.json",
     ".obsidian/core-plugins.json",
@@ -72,19 +79,24 @@ REQUIRED = (
 # Files another workstream owns. This validator must neither require them nor
 # be surprised by them: they appear alongside this tree, not from it.
 NOT_OURS = ("README.md", "AGENTS.md")
-# A host pointer file is *written by activation* (ADAPTER-PROMPT step 3), so
-# shipping one would make that step a permanent skip and leave every Hub with a
-# pointer nobody wrote. Their absence from the *scaffold* is the invariant.
-NEVER_SHIPPED = ("CLAUDE.md", "GEMINI.md", ".cursor/rules/project-hub.mdc", "HUB-OWNER.md")
+# `HUB-OWNER.md` records the answers the owner gave at activation, and its
+# presence is what "this Hub has been activated" means — to the contract's read
+# order, to the onboarding agent, and to the check below. A scaffold that
+# shipped one would assert an activation that never happened.
+NEVER_SHIPPED = ("HUB-OWNER.md",)
 # Obsidian installs plugins; the scaffold only recommends ids. Vendoring one
 # would put a third-party binary and its licence into this distribution.
 NEVER_SHIPPED_DIRECTORIES = (".obsidian/plugins",)
-# ...and every one of those paths is exactly what a *working* Hub has, because
-# activation wrote them and Obsidian installed them. This validator ships
-# inside the scaffold, so it runs in both places and must tell them apart.
-# `HUB-OWNER.md` is the signal: step 2 writes it and nothing else does, so its
-# presence means activation has run and these checks no longer apply.
+# ...and both are exactly what a *working* Hub has, because activation wrote the
+# first and Obsidian installed the second. This validator ships inside the
+# scaffold, so it runs in both places and must tell them apart.
 ACTIVATION_MARKER = "HUB-OWNER.md"
+# Host pointer files. Shipping one is fine and required for Claude Code;
+# shipping a *fat* one is the bug, because a pointer that restates a rule is
+# how two layers become three. Whichever are present are held to the shape the
+# contract and ADAPTER-PROMPT step 3 both describe.
+POINTER_FILES = ("CLAUDE.md", "GEMINI.md", ".cursor/rules/project-hub.mdc")
+POINTER_MAX_LINES = 40
 
 TEXT_SUFFIXES = {".html", ".json", ".md", ".py", ".toml", ".txt", ".yaml", ".yml", ""}
 SKIP_PARTS = {".git", "__pycache__", ".venv", "node_modules"}
@@ -157,6 +169,19 @@ def main() -> int:
         for relative in NEVER_SHIPPED_DIRECTORIES:
             if (ROOT / relative).exists():
                 errors.append(f"{relative} exists; Obsidian installs plugins, the scaffold only recommends ids")
+
+    for relative in POINTER_FILES:
+        path = ROOT / relative
+        if not path.is_file():
+            continue
+        lines = path.read_text(encoding="utf-8").splitlines()
+        if "AGENTS.md" not in "\n".join(lines):
+            errors.append(f"{relative}: a host pointer must name AGENTS.md")
+        if len(lines) > POINTER_MAX_LINES:
+            errors.append(
+                f"{relative}: {len(lines)} lines; a pointer over {POINTER_MAX_LINES} is a second copy "
+                "of the contract, which is the bug two layers exist to prevent"
+            )
 
     for skill in ROOT.glob("skills/*/SKILL.md"):
         errors.extend(validate_skill(skill))
