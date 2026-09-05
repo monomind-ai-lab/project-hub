@@ -5,8 +5,9 @@ in a project repository instead, you want the
 [builder's guide](https://github.com/monomind-ai-lab/project-context/blob/main/docs/builders-guide.md)
 in the Project Context repository.
 
-Written against **0.1.0**. Everything here is built and tested unless it appears
-under [Not built yet](#not-built-yet).
+Written against Project Hub **0.2.0** and Project Context **0.10.0**.
+Everything here is built and tested unless it appears under
+[Not built yet](#not-built-yet).
 
 ---
 
@@ -243,12 +244,40 @@ and that a project repository needs no network at all to work.
 
 ---
 
+## What your builders gained
+
+Three things landed on the repository side that change what reaches you, and
+what you can expect of a project before you pull it.
+
+**They can answer a pushed record without being able to edit it.** A builder
+who disagrees with a guardrail, an epic item, or an architecture record runs
+`project-context capture --kind proposal` or files a question in
+`QUESTIONS.md`. Either sits in their repository until your next `/hub-pull`,
+which is why `pull --all` needs to be routine — nothing moves until you do it.
+
+**`PLAN.md` is checked against the epic you pushed.** Each `## M-NNN:` item
+carries a `Serves:` line naming the `blueprint/EPIC.md` item it advances, and
+their doctor errors on an item that names none. The asymmetry is deliberate:
+an epic item no plan item serves is only a warning, because your epic is
+allowed to run ahead of the milestone in front of them. You will see the error
+in `pulled/` before you see it in a pull request.
+
+**They have a standing review of their own.** `project-context review` lists
+what is waiting on a person in their repository, oldest first — including a
+`stale-snapshot` finding when the `global/` you pushed has not been refreshed
+in ninety days. That one is aimed at you.
+
+---
+
 ## Not built yet
 
 - **The Hub's cross-project assembler** — asking the Hub a question spanning
-  every project.
-- **`review`** — the pending-items list.
-- **The `Serves:` conformance check** — a convention today, not enforced.
+  every project. Retrieval works inside a repository today; a builder's packet
+  sees their project and the global snapshot, which is the correct blast
+  radius. Reading across `projects/` is the Hub's job and is not built.
+- **A Hub-side `review`** — the pending-items list sorted by oldest unanswered,
+  across every project. The repository-side `project-context review` is built;
+  the Hub does not yet aggregate them, so today you read what `pull` brought.
 - **A SQLite cache** — deliberately deferred until an automated query proves
   slow. Never in a project repository.
 
