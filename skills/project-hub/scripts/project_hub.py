@@ -1120,6 +1120,14 @@ def shareable(hub: Path, marker: dict[str, Any]) -> tuple[list[tuple[str, str]],
 
 
 def blueprint_files(hub: Path, project_id: str) -> tuple[list[tuple[str, str]], list[dict[str, str]]]:
+    """A project's blueprint, whole, minus the two content filters `shareable`
+    applies. There is no allow-list here — the folder is the allow-list — but
+    the README and unfilled-seed rules are about what a file *is*, not about
+    which tier it sits in, so they hold on both sides. `docs/CLI.md` has said
+    "minus the same two filters" all along; only one of them was implemented,
+    which meant a `blueprint/README.md` written for the owner would land in
+    someone else's checkout.
+    """
     root = project_dir(hub, project_id) / "blueprint"
     selected: list[tuple[str, str]] = []
     skipped: list[dict[str, str]] = []
@@ -1127,6 +1135,9 @@ def blueprint_files(hub: Path, project_id: str) -> tuple[list[tuple[str, str]], 
         return selected, skipped
     for path in sorted(root.rglob("*.md")):
         relative = f"blueprint/{path.relative_to(root).as_posix()}"
+        if path.name == "README.md":
+            skipped.append({"path": relative, "reason": "a README explains the Hub, not the organisation"})
+            continue
         text = read_text(path)
         if text is None:
             skipped.append({"path": relative, "reason": "missing, a symlink, or not UTF-8 text"})
@@ -1419,12 +1430,22 @@ def gated_apply(hub: Path, project_id: str, repo: Path, report: dict[str, Any],
                 args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
     """The one write into a repository the Hub does not live in.
 
-    Every precondition is checked before a byte moves: the tree is clean, the
-    branch is not the default one, the branch is new, and a person said yes to
-    the diff. The last step — sending the branch to the remote — is deliberately
-    not taken here. It is printed as the command to run, because a tool that
-    pushes to someone else's repository on the strength of its own reasoning is
-    a tool nobody should install.
+    Every precondition is checked before a byte moves: there is something to
+    send, the tree is clean, the branch is not the default one, and a person
+    said yes to the diff after seeing it. Only then does this write, commit,
+    push the sync branch, and open or update a pull request.
+
+    The consent is the safeguard, not a refusal to finish the job: `confirm()`
+    returns False without a TTY, so a non-interactive run is *declined* rather
+    than assumed, and `--yes` is a person deciding in advance. What the tool
+    never does is merge — that stays with the repository — and it never
+    force-pushes, so a repeated sync adds a commit to the long-lived branch
+    rather than rewriting a reviewer's place in an open pull request.
+
+    This docstring used to claim the push was "deliberately not taken here"
+    and only printed as a command to run. That stopped being true when the
+    round trip was completed, and the sentence survived the change; the code
+    forty lines below has been pushing and opening the pull request all along.
     """
     if report["changes"] == 0:
         return 0, {"applied": False, "reason": "nothing to push; the repository already matches the Hub"}

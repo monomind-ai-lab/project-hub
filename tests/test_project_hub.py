@@ -258,6 +258,25 @@ class PushAllowListTests(HubCase):
         report = self.run_cli("push", str(self.repo), "--dry-run")
         self.assertFalse(any("drafts" in action["path"] for action in report["actions"]))
 
+    def test_a_blueprint_readme_is_skipped_like_a_global_one(self) -> None:
+        """`docs/CLI.md` says the blueprint is sent "minus the same two
+        filters", and for a while only the unfilled-seed one ran. A README in
+        a blueprint folder explains the folder to the owner who wrote it; it
+        has no more business in someone else's checkout than a README in
+        `global/` does, and a project repository may have collaborators
+        outside the organisation."""
+        self.make_repo(installed=True, remote=True)
+        self.seed_global()
+        self.write_blueprint("notes-api", "EPIC.md", "# Epic\n\n- **E-001 — One store.**\n")
+        self.write_blueprint("notes-api", "README.md", "# What this folder is for\n\nNotes to myself.\n")
+        report = self.run_cli("push", str(self.repo), "--dry-run")
+        sent = [action["path"] for action in report["actions"]]
+        self.assertTrue(any(path.endswith("project-context/blueprint/EPIC.md") for path in sent))
+        self.assertFalse(any(path.endswith("blueprint/README.md") for path in sent))
+        skipped = {entry["path"]: entry["reason"] for entry in report["skipped"]}
+        self.assertIn("blueprint/README.md", skipped)
+        self.assertIn("README", skipped["blueprint/README.md"])
+
     def test_blueprint_is_sent_and_lands_under_project_context(self) -> None:
         self.make_repo(installed=True, remote=True)
         self.seed_global()
