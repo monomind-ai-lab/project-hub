@@ -48,7 +48,14 @@ Nothing flows from a builder's repository into your Hub except by your own
 
 1. Make a **private** repository of your own from this scaffold, and clone it.
 2. Open the folder in the tool you already work in — Claude Code or Codex.
-3. Paste this as your first message:
+3. Ask for it. In Claude Code the scaffold ships the agent that does this, so
+   any of these is enough:
+
+   ```
+   set this up   ·   activate the hub   ·   onboard me
+   ```
+
+   In any other tool, paste this instead:
 
    ```
    Read ADAPTER-PROMPT.md at the root of this folder and follow it.
@@ -62,12 +69,17 @@ it skipped, and what is still empty.
 Running it again is safe. It checks before every write and skips anything you
 have changed.
 
+The agent has no shell and no network — it can read, write, and edit files in
+this folder and nothing else. "Never run `git init`, never add a remote, never
+push" is therefore a fact about what it is able to do, not a promise it makes.
+
 ## What is in the folder
 
 | Path | Holds |
 | --- | --- |
 | `AGENTS.md` | The contract. One file, read first, never duplicated |
-| `ADAPTER-PROMPT.md` | The activation prompt you paste |
+| `ADAPTER-PROMPT.md` | The seven activation steps, for a host with no agent |
+| `.claude/agents/` | The same seven steps as a Claude Code agent |
 | `global/` | The global tier you author |
 | `projects/<id>/` | Mark, summary, `blueprint/`, and `pulled/` |
 | `owners_window/` | Yours. Never pushed, never linted |

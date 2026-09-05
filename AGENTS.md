@@ -114,5 +114,8 @@ of Markdown, and everything above is still true.
 
 ## First time here
 
-If `HUB-OWNER.md` does not exist, this Hub has not been activated. Read
-`ADAPTER-PROMPT.md` and follow it.
+If `HUB-OWNER.md` does not exist, this Hub has not been activated. On a host
+that dispatches agents from disk, hand this to `hub-onboarding` in
+`.claude/agents/`. Otherwise read `ADAPTER-PROMPT.md` and follow it yourself —
+it is the same seven steps, and the agent is a pointer to it rather than a
+second copy of it.

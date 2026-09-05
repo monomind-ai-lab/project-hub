@@ -1,7 +1,7 @@
 {
   "product": "project-hub",
   "schema": "project-context/1",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "registry": "registry.md",
   "lint": {
     "exclude": [

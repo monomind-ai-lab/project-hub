@@ -54,6 +54,101 @@ agent may rely on all seven being present:
 
 ---
 
+## 0.2.0 (2026-09-05)
+
+### Summary
+
+Additive, and nothing in an owner's Hub has to change. The onboarding surface
+that 0.1.0 shipped was not covered by the scaffold's own validator or tests —
+it was carried as another workstream's files, neither required nor checked. It
+is now part of what the scaffold guarantees. For an activated Hub this release
+is documentation plus a stricter self-check; no record, no `global/` file, and
+no project folder is touched.
+
+One behaviour worth knowing about: `scripts/validate_repository.py` now refuses
+a scaffold that ships a host pointer file, `HUB-OWNER.md`, or vendored plugin
+code — and skips those three checks entirely once `HUB-OWNER.md` exists, because
+that is exactly what a working Hub has. Running the validator in your own Hub
+stays a pass.
+
+### Added
+
+- `tests/test_onboarding.py` — the onboarding surface under test: the agent's
+  tools, the prompt's seven steps and report fields, the guide set, and the
+  Obsidian configuration.
+
+### Changed
+
+- `scripts/validate_repository.py` — requires `ADAPTER-PROMPT.md`,
+  `.claude/agents/hub-onboarding.md`, `.obsidian/community-plugins.json`,
+  `.obsidian/core-plugins.json`, `CHANGELOG-MIGRATION.md`, and the six guides.
+  Adds the never-shipped check described above, gated on `HUB-OWNER.md`.
+- `tests/test_hub_scaffold.py` — its boundary list narrows to `README.md` and
+  `AGENTS.md`; the rule that the CLI must not name the onboarding surface is
+  now its own test.
+- `README.md`, `owners-guide.md`, `AGENTS.md` — activation now names the
+  shipped agent as the first path on a host that dispatches agents from disk,
+  with the paste-the-prompt route as the fallback rather than the only way.
+
+### Removed
+
+None.
+
+### Path mappings
+
+| Old path | New path | Operation |
+| --- | --- | --- |
+| _(none — additive release)_ | | |
+
+### Migration recipe
+
+#### Step 1/3 — Detect the installed version
+
+Read `VERSION`.
+
+- `0.1.0`: continue.
+- `0.2.0` or higher: this entry is already applied. Stop, and report "already at
+  0.2.0 or newer".
+- Absent or lower: apply the `0.1.0` entry first, then return here.
+
+#### Step 2/3 — Refresh the scaffold's own files
+
+Copy these from the target scaffold, replacing what is there. Every one is a
+scaffold file with no owner content in it, so this is a replace rather than a
+merge — but check each against the list before writing, and skip anything the
+owner has edited, reporting the skip:
+
+- `scripts/validate_repository.py`
+- `tests/test_hub_scaffold.py`
+- `tests/test_onboarding.py`
+- `ADAPTER-PROMPT.md`, `.claude/agents/hub-onboarding.md`, `guides/`,
+  `.obsidian/community-plugins.json`, `.obsidian/core-plugins.json` — only if
+  absent. If present, leave them; 0.2.0 changes none of their content.
+
+Do not touch `README.md`, `AGENTS.md`, or `owners-guide.md` in an activated
+Hub. The owner may have personalised them at activation, and the wording
+changes in this release are not worth overwriting that.
+
+#### Step 3/3 — Record the version
+
+Write `0.2.0` to `VERSION` and set `"version": "0.2.0"` in `.project-hub.json`.
+The two must agree; a Hub whose marker and `VERSION` disagree cannot be
+upgraded deterministically by the next entry.
+
+### Verification
+
+| Check | Passes when |
+| --- | --- |
+| Validator passes in place | `python3 scripts/validate_repository.py` exits 0 in this folder |
+| Activation still recognised | `HUB-OWNER.md` is unchanged, and the validator did not report it |
+| Onboarding intact | `.claude/agents/hub-onboarding.md` and `ADAPTER-PROMPT.md` both exist |
+| No vendored plugins added | This run created no `.obsidian/plugins/` directory |
+| Versions agree | `VERSION` and `.project-hub.json`'s `version` both read `0.2.0` |
+| Owner's window untouched | `owners_window/` has the same contents it had before the run |
+| Records untouched | `global/`, `projects/`, and `registry.md` are byte-identical to before the run |
+
+---
+
 ## 0.1.0 (2026-09-03)
 
 ### Summary
