@@ -54,6 +54,97 @@ agent may rely on all seven being present:
 
 ---
 
+## 0.2.1 (2026-09-17)
+
+### Summary
+
+Additive compatibility release for Project Context 0.11. Project Hub already
+pulled decisions, questions, tasks, inbox capsules, and the core summaries, but
+its explicit authored-set allow-list omitted `designs/` and `incidents/`.
+Those two writer-backed record kinds now cross the same owner-initiated pull
+boundary. No owner-authored record, global file, blueprint, or owner's-window
+content changes.
+
+The release also makes the shipped Obsidian community-plugin manifest part of
+the tracked scaffold. Plugin code remains excluded; the manifest only names
+the optional plugin Obsidian may install itself.
+
+### Added
+
+- `.obsidian/community-plugins.json` — tracked optional-plugin manifest. It
+  names `realclaudian`; no plugin code is vendored.
+
+### Changed
+
+- `skills/project-hub/scripts/project_hub.py` — adds `designs/` and
+  `incidents/` to the pull allow-list.
+- `tests/test_project_hub.py` — proves both record kinds are pulled while the
+  pushed set, sessions, marker, and protocol remain excluded.
+- `README.md`, `owners-guide.md`, `docs/CLI.md`, and
+  `guides/authored-and-pushed.md` — document the complete authored set and the
+  Project Context 0.11 compatibility boundary.
+- `.gitignore` — stops ignoring the shipped community-plugin manifest while
+  continuing to exclude downloaded plugin code and transient Obsidian state.
+- `VERSION` and `.project-hub.json` — advance together to `0.2.1`.
+
+### Removed
+
+None.
+
+### Path mappings
+
+| Old path | New path | Operation |
+| --- | --- | --- |
+| _(none — additive release)_ | | |
+
+### Migration recipe
+
+#### Step 1/3 — Detect the installed version
+
+Read `VERSION`.
+
+- `0.2.1` or higher: this entry is already applied. Stop, and report "already
+  at 0.2.1 or newer".
+- `0.2.0`: continue.
+- Absent or lower: apply the older entries first, then return here.
+
+#### Step 2/3 — Refresh the managed compatibility surface
+
+Before writing, confirm `global/`, `projects/`, `owners_window/`, and
+`registry.md` will not be touched. For each existing managed file below,
+replace it from the 0.2.1 scaffold only when it still matches the 0.2.0
+release; if the owner edited it, stop and ask rather than overwriting it:
+
+- `skills/project-hub/scripts/project_hub.py`
+- `tests/test_project_hub.py`
+- `README.md`, `owners-guide.md`, `docs/CLI.md`, and
+  `guides/authored-and-pushed.md`
+- `.gitignore`
+
+If `.obsidian/community-plugins.json` is absent, create it from the scaffold.
+If it already exists, leave it unchanged: an activated Hub may carry the
+owner's plugin choices. Never create `.obsidian/plugins/`.
+
+#### Step 3/3 — Record the version
+
+Write `0.2.1` to `VERSION` and set `"version": "0.2.1"` in
+`.project-hub.json`. These are scaffold metadata, not owner-authored records,
+and must agree before the next migration can be selected deterministically.
+
+### Verification
+
+| Check | Passes when |
+| --- | --- |
+| Unit tests pass | `python3 -m unittest discover -s tests -v` exits 0 |
+| Validator passes | `python3 scripts/validate_repository.py` exits 0 |
+| Pull boundary is complete | The pull regression includes both `designs/DS-001.md` and `incidents/I-001.md` |
+| Versions agree | `VERSION` and `.project-hub.json` both read `0.2.1` |
+| No vendored plugins added | `.obsidian/plugins/` does not exist |
+| Owner's window untouched | `owners_window/` has the same contents it had before the run |
+| Records untouched | `global/`, `projects/`, and `registry.md` are byte-identical to before the run |
+
+---
+
 ## 0.2.0 (2026-09-05)
 
 ### Summary

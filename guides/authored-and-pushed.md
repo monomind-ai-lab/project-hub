@@ -9,7 +9,7 @@ convention — a check enforces it, and it will tell you when you have broken it
 
 | Set | Files | Written by | Arrives how |
 | --- | --- | --- | --- |
-| **Authored** | `SUMMARY.md`, `NOW.md`, `PLAN.md`, `tasks/`, `DECISIONS.md`, `decisions/`, `LEARNINGS.md`, `QUESTIONS.md`, `questions/`, `inbox/`, `indexes/` | Builders, in the repo | They write it there |
+| **Authored** | `SUMMARY.md`, `NOW.md`, `PLAN.md`, `tasks/`, `DECISIONS.md`, `decisions/`, `LEARNINGS.md`, `QUESTIONS.md`, `questions/`, `designs/`, `incidents/`, `inbox/`, `indexes/` | Builders, in the repo | They write it there |
 | **Pushed** | `global/`, `blueprint/` (`EPIC.md` and `ARCHITECTURE.md`) | The owner, in the Hub | `/hub-push`, as a commit on a branch |
 
 The pushed set is read-only in the repository. Each pushed file's hash is
