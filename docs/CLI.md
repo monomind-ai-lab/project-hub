@@ -110,10 +110,10 @@ the network, and it writes only remote-tracking refs in the owner's own clone.
 
 The authored set is an allow-list — `SUMMARY.md`, `NOW.md`, `PLAN.md`,
 `tasks/`, `DECISIONS.md`, `decisions/`, `LEARNINGS.md`, `QUESTIONS.md`,
-`questions/`, `inbox/`, `indexes/`. Everything else is excluded because it is
-not on the list, which is why `sessions/`, the marker, the protocol text, and
-the whole pushed set never arrive here. Symlinks and submodules in the tree are
-skipped and reported, never followed.
+`questions/`, `designs/`, `incidents/`, `inbox/`, `indexes/`. Everything else
+is excluded because it is not on the list, which is why `sessions/`, the
+marker, the protocol text, and the whole pushed set never arrive here.
+Symlinks and submodules in the tree are skipped and reported, never followed.
 
 Alongside the mirror, `pulled/STAMP.json` records the repository, the branch,
 the commit, the time, and a `sha256` per file. A pull that finds nothing new

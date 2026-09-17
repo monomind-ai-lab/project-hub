@@ -5,7 +5,7 @@ in a project repository instead, you want the
 [builder's guide](https://github.com/monomind-ai-lab/project-context/blob/main/docs/builders-guide.md)
 in the Project Context repository.
 
-Written against Project Hub **0.2.0** and Project Context **0.10.0**.
+Written against Project Hub **0.2.1** and Project Context **0.11.0**.
 Everything here is built and tested unless it appears under
 [Not built yet](#not-built-yet).
 
@@ -166,9 +166,10 @@ open the request by hand.
 python3 skills/project-hub/scripts/project_hub.py pull --all --apply
 ```
 
-Copies each repository's own records into `projects/<id>/pulled/`, reading the
-git object database rather than the working copy. A test asserts the target's
-`HEAD`, status, and every file mtime are byte-identical before and after.
+Copies each repository's own records — including tasks, decisions, questions,
+designs and incidents — into `projects/<id>/pulled/`, reading the git object
+database rather than the working copy. A test asserts the target's `HEAD`,
+status, and every file mtime are byte-identical before and after.
 
 It writes a `STAMP.json` with repository, branch, commit, time and per-file
 hashes, refreshes the registry, and reports records that disappeared as `stale`.

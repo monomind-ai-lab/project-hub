@@ -59,7 +59,8 @@ UNFILLED = "<!-- project-hub:unfilled -->"
 # stays excluded until someone adds it here deliberately.
 AUTHORED_SET = (
     "SUMMARY.md", "NOW.md", "PLAN.md", "DECISIONS.md", "LEARNINGS.md",
-    "QUESTIONS.md", "tasks/", "decisions/", "questions/", "inbox/", "indexes/",
+    "QUESTIONS.md", "tasks/", "decisions/", "questions/", "designs/",
+    "incidents/", "inbox/", "indexes/",
 )
 DEFAULT_GLOBAL_INCLUDE = (
     "SUMMARY.md",

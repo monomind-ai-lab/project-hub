@@ -435,12 +435,16 @@ class PullTests(HubCase):
     def authored_repo(self) -> Path:
         self.make_repo(installed=True)
         context = self.repo / "project-context"
-        for folder in ("tasks", "sessions", "inbox", "global", "blueprint"):
+        for folder in (
+            "tasks", "designs", "incidents", "sessions", "inbox", "global", "blueprint",
+        ):
             (context / folder).mkdir(parents=True, exist_ok=True)
         (context / "NOW.md").write_text("# Now\n\nBuilding.\n", encoding="utf-8")
         (context / "PLAN.md").write_text("# Plan\n\n- Search. Serves: E-002\n", encoding="utf-8")
         (context / "QUESTIONS.md").write_text("# Questions\n\n- Q-001 open\n", encoding="utf-8")
         (context / "tasks" / "T-001.md").write_text("# T-001\n", encoding="utf-8")
+        (context / "designs" / "DS-001.md").write_text("# DS-001\n", encoding="utf-8")
+        (context / "incidents" / "I-001.md").write_text("# I-001\n", encoding="utf-8")
         (context / "inbox" / "C-1.md").write_text("# capsule\n", encoding="utf-8")
         (context / "SKILL.md").write_text("# protocol\n", encoding="utf-8")
         (context / "sessions" / "log.jsonl").write_text('{"secret": true}\n', encoding="utf-8")
@@ -456,7 +460,11 @@ class PullTests(HubCase):
         pulled = self.hub / "projects" / "notes-api" / "pulled"
         got = sorted(path.relative_to(pulled).as_posix() for path in pulled.rglob("*") if path.is_file())
         self.assertEqual(
-            ["NOW.md", "PLAN.md", "QUESTIONS.md", "STAMP.json", "inbox/C-1.md", "tasks/T-001.md"],
+            [
+                "NOW.md", "PLAN.md", "QUESTIONS.md", "STAMP.json",
+                "designs/DS-001.md", "inbox/C-1.md", "incidents/I-001.md",
+                "tasks/T-001.md",
+            ],
             got,
         )
         # The three exclusions that matter, checked as absences.

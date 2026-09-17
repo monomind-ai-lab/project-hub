@@ -7,6 +7,11 @@ the people building it have actually written down.
 It is plain Markdown in a Git repository. No database, no service to log into,
 no runtime dependency. An agent reads it; so can you.
 
+The current scaffold release is **0.2.1**. It is compatible with Project
+Context 0.11's complete authored record set: decisions, questions, tasks,
+designs, incidents, inbox capsules, and the three core summaries all cross the
+owner-initiated pull boundary.
+
 ## This repository is the scaffold, not a Hub
 
 Read this bit before anything else, because it is the thing everyone gets
@@ -35,9 +40,9 @@ Nothing flows from a builder's repository into your Hub except by your own
   it), your summary of it, and the blueprint you author for it: `EPIC.md`, the
   goal the project serves, and `ARCHITECTURE.md`, the shape it has to keep.
 - **The builders' own records, brought to you.** `/hub-pull` copies each
-  repository's plan, tasks, decisions, learnings and open questions into
-  `projects/<id>/pulled/`. You read them here, together, without cloning
-  anything.
+  repository's plan, tasks, decisions, learnings, open questions, designs and
+  incident records into `projects/<id>/pulled/`. You read them here, together,
+  without cloning anything.
 - **A window of your own.** `owners_window/` is where you write about what is
   coming: half-formed projects, reflections, an argument with yourself. It is
   never pushed anywhere, never linted, and never pulled into.
